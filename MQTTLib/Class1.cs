@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using MQTTnet;
 using MQTTnet.Client;
@@ -15,57 +16,36 @@ namespace MQTTLib
         public MQTT()
         { }
 
-        public static async Task Publish_Application_Message()
+
+        public  async Task Publish_Application_Message()
         {
+            /*
+             * This sample pushes a simple application message including a topic and a payload.
+             *
+             * Always use builders where they exist. Builders (in this project) are designed to be
+             * backward compatible. Creating an _MqttApplicationMessage_ via its constructor is also
+             * supported but the class might change often in future releases where the builder does not
+             * or at least provides backward compatibility where possible.
+             */
 
-            IManagedMqttClient _mqttClient = new MqttFactory().CreateManagedMqttClient();
+            var mqttFactory = new MqttFactory();
 
-            // Create client options object
-            MqttClientOptionsBuilder builder = new MqttClientOptionsBuilder()
-                                                    .WithClientId("behroozbc")
-                                                    .WithTcpServer("localhost");
-            ManagedMqttClientOptions options = new ManagedMqttClientOptionsBuilder()
-                                    .WithAutoReconnectDelay(TimeSpan.FromSeconds(60))
-                                    .WithClientOptions(builder.Build())
-                                    .Build();
-
-
-
-            // Set up handlers
-            _mqttClient.ConnectedAsync += _mqttClient_ConnectedAsync;
-
-
-            _mqttClient.DisconnectedAsync += _mqttClient_DisconnectedAsync;
-
-
-            _mqttClient.ConnectingFailedAsync += _mqttClient_ConnectingFailedAsync;
-
-
-            // Connect to broker
-            await _mqttClient.StartAsync(options);
-
-            // Send a new message to the broker every second
-            while (true)
+            using (var mqttClient = mqttFactory.CreateMqttClient())
             {
-   //             string json = JsonSerializer.Serialize(new { message = "Hi Mqtt", sent = DateTime.UtcNow });
-   //             await _mqttClient.EnqueueAsync("behroozbc.ir/topic/json", json);
+                var mqttClientOptions = new MqttClientOptionsBuilder()
+                    .WithTcpServer("10.20.0.40")
+                    .Build();
 
-                await Task.Delay(TimeSpan.FromSeconds(1));
-            }
-            Task _mqttClient_ConnectedAsync(MqttClientConnectedEventArgs arg)
-            {
-                Console.WriteLine("Connected");
-                return Task.CompletedTask;
-            };
-            Task _mqttClient_DisconnectedAsync(MqttClientDisconnectedEventArgs arg)
-            {
-                Console.WriteLine("Disconnected");
-                return Task.CompletedTask;
-            };
-            Task _mqttClient_ConnectingFailedAsync(ConnectingFailedEventArgs arg)
-            {
-                Console.WriteLine("Connection failed check network or broker!");
-                return Task.CompletedTask;
+                await mqttClient.ConnectAsync(mqttClientOptions, CancellationToken.None);
+
+                var applicationMessage = new MqttApplicationMessageBuilder()
+                    .WithTopic("samples/temperature/living_room")
+                    .WithPayload("19.5")
+                    .Build();
+
+                await mqttClient.PublishAsync(applicationMessage, CancellationToken.None);
+
+                Console.WriteLine("MQTT application message is published.");
             }
         }
     }
